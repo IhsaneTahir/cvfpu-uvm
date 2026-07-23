@@ -78,6 +78,13 @@ package fpu_common_pkg;
     localparam int unsigned EMAX_FP32 = fpnew_pkg::bias(fpnew_pkg::FP32) + fpnew_pkg::bias(fpnew_pkg::FP64);
     localparam int unsigned EMAX_FP64 = 2*fpnew_pkg::bias(fpnew_pkg::FP64);
     
+    localparam int unsigned FP16_EXP_BITS = fpnew_pkg::exp_bits(fpnew_pkg::FP16);
+    localparam int unsigned FP16_MAN_BITS = fpnew_pkg::man_bits(fpnew_pkg::FP16);
+    
+    localparam int unsigned EMIN_FP32 = 1 - fpnew_pkg::bias(fpnew_pkg::FP32) + fpnew_pkg::bias(fpnew_pkg::FP64);
+    localparam int unsigned EMAX_FP32 = fpnew_pkg::bias(fpnew_pkg::FP32) + fpnew_pkg::bias(fpnew_pkg::FP64);
+    localparam int unsigned EMAX_FP64 = 2*fpnew_pkg::bias(fpnew_pkg::FP64);
+    
     typedef struct packed {
         logic                     sign;
         logic [FP64_EXP_BITS-1:0] exponent;
@@ -89,6 +96,12 @@ package fpu_common_pkg;
         logic [FP32_EXP_BITS-1:0] exponent;
         logic [FP32_MAN_BITS-1:0] mantissa;
     } fp_single_t;
+
+    typedef struct packed {
+        logic                     sign;
+        logic [FP16_EXP_BITS-1:0] exponent;
+        logic [FP16_MAN_BITS-1:0] mantissa;
+    } fp_half_t;
 
     typedef enum logic [2:0] { 
         INF,
@@ -131,6 +144,7 @@ package fpu_common_pkg;
         unique case (fmt) 
             2'h0: return value[fpnew_pkg::man_bits(fpnew_pkg::FP32) +: fpnew_pkg::exp_bits(fpnew_pkg::FP32)];
             2'h1: return value[fpnew_pkg::man_bits(fpnew_pkg::FP64) +: fpnew_pkg::exp_bits(fpnew_pkg::FP64)];
+            2'h2: return value[fpnew_pkg::man_bits(fpnew_pkg::FP16) +: fpnew_pkg::exp_bits(fpnew_pkg::FP16)];
         endcase
     endfunction
 
@@ -141,6 +155,7 @@ package fpu_common_pkg;
         unique case (fmt) 
             2'h0: return value[fpnew_pkg::man_bits(fpnew_pkg::FP32)-1:0];
             2'h1: return value[fpnew_pkg::man_bits(fpnew_pkg::FP64)-1:0];
+            2'h2: return value[fpnew_pkg::man_bits(fpnew_pkg::FP16)-1:0];
         endcase
     endfunction
 
@@ -173,8 +188,12 @@ package fpu_common_pkg;
     
         mantissa = get_mant(value, fmt);
         exponent = get_exp(value, fmt);
-        mantissa_msb = (fmt == 2'h0) ? mantissa[fpnew_pkg::man_bits(fpnew_pkg::FP32)-1] : mantissa[fpnew_pkg::man_bits(fpnew_pkg::FP64)-1];
-        exp_all_ones = (fmt == 2'h0) ? (exponent == {fpnew_pkg::exp_bits(fpnew_pkg::FP32){1'b1}}) : (exponent == {fpnew_pkg::exp_bits(fpnew_pkg::FP64){1'b1}});
+        mantissa_msb = (fmt == 2'h0) ? mantissa[fpnew_pkg::man_bits(fpnew_pkg::FP32)-1] : 
+                       (fmt == 2'h1) ? mantissa[fpnew_pkg::man_bits(fpnew_pkg::FP64)-1] : 
+                                       mantissa[fpnew_pkg::man_bits(fpnew_pkg::FP16)-1];
+        exp_all_ones = (fmt == 2'h0) ? (exponent == {fpnew_pkg::exp_bits(fpnew_pkg::FP32){1'b1}}) : 
+                       (fmt == 2'h1) ? (exponent == {fpnew_pkg::exp_bits(fpnew_pkg::FP64){1'b1}}) : 
+                                       (exponent == {fpnew_pkg::exp_bits(fpnew_pkg::FP16){1'b1}});
 
         sign       = get_operand_sign(value, fmt);
         is_zero    = is_boxed && (exponent == '0 && mantissa == '0);
@@ -206,6 +225,7 @@ package fpu_common_pkg;
         case (fmt)
             2'h0: return value[fpnew_pkg::fp_width(fpnew_pkg::FP32)-1];
             2'h1: return value[fpnew_pkg::fp_width(fpnew_pkg::FP64)-1];
+            2'h2: return value[fpnew_pkg::fp_width(fpnew_pkg::FP16)-1];
         endcase
     endfunction: get_operand_sign
 

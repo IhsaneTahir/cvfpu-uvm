@@ -364,12 +364,11 @@ class fpu_unit_seq extends  fpu_base_sequence;
             if ( !item.randomize() with 
                 {
                     m_nan_box == 1;
-                    m_operand_b == 'hffff7e00;
-                    m_operand_a == 'hffff4fc0;
-                    m_operation == FCMP;
-                    m_fmt == 0;
-                    // m_imm == 1; // Source format 64bits
-                    m_rm == 0; // Rounding mode RNE (LEQ)
+                    m_operand_a == 'h38222f17;
+                    m_operand_b == 'h38222f18;
+                    m_operation == FSQRT;
+                    m_fmt == 'h0; // FP32
+                    m_rm == 2; // RDN
                 } ) 
             begin
                 `uvm_fatal("body","Randomization failed");    

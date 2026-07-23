@@ -83,6 +83,23 @@ int get_conv_flags()
     return exc_flags;
 }
 
+int get_i2f_conv_flags()
+{
+    int exc_flags = 0;
+
+    // For I2F casts, range errors correspond to FP overflow, not invalid.
+    if (mpfr_overflow_p() || mpfr_erangeflag_p())
+    {
+        SET_BIT_TO_1__DWORD(exc_flags, 2);
+    }
+    if (mpfr_inexflag_p())
+    {
+        SET_BIT_TO_1__DWORD(exc_flags, 0);
+    }
+
+    return exc_flags;
+}
+
 
 int64_t IEEElike_emax(uint8_t es)
 {
