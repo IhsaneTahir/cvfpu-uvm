@@ -145,7 +145,7 @@ The regression tests run automatically in batch mode and with the dump option en
 * The current verification environment targets the CVA6 core exclusively.
 * `RMM`, `ROD`, and `DYN` rounding modes have not been fully verified.
 * Vector floating-point operations are not supported by the current testbench.
-* Only `FP32` and `FP64` formats are thoroughly tested. Other formats are verified only within `F2F` (float-to-float) conversion operations.
+* Only `FP32`, `FP64`, and `FP16` formats are thoroughly tested. Other formats are verified only within `F2F` (float-to-float) conversion operations.
 * For `F2I` (float-to-integer) and `I2F` (integer-to-float) operations, only `INT32` and `INT64` integer formats are tested.
 
 ### 4.3 Adding a new test
