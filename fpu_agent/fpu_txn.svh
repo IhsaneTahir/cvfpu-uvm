@@ -85,6 +85,7 @@ class fpu_txn extends uvm_sequence_item;
     rand fp_op_type_e   m_fp_op_type [2:0];         // Class of floating point operands
     rand fp_double_t    m_fp_double_operands [2:0]; // Double precision floating point operands
     rand fp_single_t    m_fp_single_operands [2:0]; // Single precision floating point operands
+    rand fp_half_t      m_fp_half_operands [2:0];   // Half precision floating point operands
 
     rand mant_cfg_e                m_fp_mant_cfg [2:0];  // Mantissa type of each floating point operand 
     rand int                       m_op_group_cfg;       // Operation group 
@@ -96,7 +97,7 @@ class fpu_txn extends uvm_sequence_item;
     // Randomization Constraints
     // -------------------------------------------------------------------------
     // Supported FP formats
-    constraint fp_fmt_c { m_fmt inside {0, 1}; } 
+    constraint fp_fmt_c { m_fmt inside {0, 1, 2}; } 
     
     // Randomization ordering
     constraint order_ordering_c { solve m_fmt before m_fp_op_type; }
@@ -120,9 +121,11 @@ class fpu_txn extends uvm_sequence_item;
         foreach (m_fp_op_type[i]) {
             m_fp_op_type[i] inside {QNAN, SNAN, INF} -> { m_fp_double_operands[i].exponent == '1;
                                                           m_fp_single_operands[i].exponent == '1; 
+                                                          m_fp_half_operands[i].exponent == '1;
                                                         }
             m_fp_op_type[i] inside {ZERO, SUBNORMAL} -> { m_fp_double_operands[i].exponent == '0;
                                                           m_fp_single_operands[i].exponent == '0;
+                                                          m_fp_half_operands[i].exponent == '0;
                                                         }
         }
     }
@@ -166,6 +169,27 @@ class fpu_txn extends uvm_sequence_item;
         }
     }
 
+    constraint half_mant_c {
+        foreach (m_fp_op_type[i]) {
+            if (m_fp_op_type[i] inside {ZERO, INF}) {
+                m_fp_half_operands[i].mantissa == '0;
+            } else if (m_fp_op_type[i] == QNAN) {
+                m_fp_half_operands[i].mantissa != '0;
+            } else if (m_fp_op_type[i] == SNAN) {
+                m_fp_half_operands[i].mantissa[FP16_MAN_BITS-1] == 1'b0;
+            } else if (m_fp_op_type[i] == SUBNORMAL) {
+                (m_fp_mant_cfg[i] == ALL_ONES)     ->  m_fp_half_operands[i].mantissa == '1;
+                (m_fp_mant_cfg[i] == WALKING_ONE)  ->  $countones(m_fp_half_operands[i].mantissa) == 1;
+                (m_fp_mant_cfg[i] == WALKING_ZERO) ->  $countones(m_fp_half_operands[i].mantissa) == 10;
+            } else {
+                (m_fp_mant_cfg[i] == ALL_ZEROS)    ->  m_fp_half_operands[i].mantissa == '0;
+                (m_fp_mant_cfg[i] == ALL_ONES)     ->  m_fp_half_operands[i].mantissa == '1;
+                (m_fp_mant_cfg[i] == WALKING_ONE)  ->  $countones(m_fp_half_operands[i].mantissa) == 1;
+                (m_fp_mant_cfg[i] == WALKING_ZERO) ->  $countones(m_fp_half_operands[i].mantissa) == 10;
+            }
+        }
+    }
+
     constraint operands_c {
         if (m_operation == FCVT_F2F)
         {
@@ -175,6 +199,9 @@ class fpu_txn extends uvm_sequence_item;
             (m_imm == 0) -> {
                 m_operand_a == m_fp_single_operands[0];
             } 
+            (m_imm == 2) -> {
+                m_operand_a == m_fp_half_operands[0];
+            }
         }
         else if (m_operation == FCVT_I2F) {
             m_operand_a == m_int_operand;
@@ -190,6 +217,11 @@ class fpu_txn extends uvm_sequence_item;
                 m_operand_b == m_fp_single_operands[1];
                 m_imm       == m_fp_single_operands[2];
             } 
+            (m_fmt == 2) -> {
+                m_operand_a == m_fp_half_operands[0];
+                m_operand_b == m_fp_half_operands[1];
+                m_imm       == m_fp_half_operands[2];
+            }
         }
     }
 
@@ -211,7 +243,9 @@ class fpu_txn extends uvm_sequence_item;
     // Unused field
     constraint unused_c { m_prec == 0; }
 
-    constraint imm_c { (m_operation inside {FCVT_F2F, FCVT_F2I, FCVT_I2F } ) -> m_imm inside {0, 1, 2, 3}; }
+    constraint imm_c { (m_operation == FCVT_F2F ) -> m_imm inside {0, 1, 2};
+                        m_operation inside {FCVT_F2I, FCVT_I2F } -> m_imm inside {0, 1, 2, 3}; // m_imm[1:0] encodes destination interger format for F2I and source integer format for I2F
+                }
 
     constraint fpu_operator_c { m_operation inside {[int'(FADD) : int'(FCLASS)]} ; }
 

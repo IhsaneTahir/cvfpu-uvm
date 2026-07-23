@@ -71,8 +71,8 @@ class fpu_top_cfg extends uvm_object;
         return s;
     endfunction: convert2string
 
-    constraint reset_on_the_fly_c    {m_reset_on_the_fly dist {1 := 10, 0 := 90};} // insert reset on the fly 10% of the time
-    constraint flush_on_the_fly_c    {m_flush_on_the_fly dist {1 := 10, 0 := 90};} // insert flush on the fly 10% of the time
+    constraint reset_on_the_fly_c    {m_reset_on_the_fly dist {1 := 30, 0 := 70};} // insert reset on the fly 30% of the time
+    constraint flush_on_the_fly_c    {m_flush_on_the_fly dist {1 := 50, 0 := 50};} // insert flush on the fly 50% of the time
 
 endclass : fpu_top_cfg
 
