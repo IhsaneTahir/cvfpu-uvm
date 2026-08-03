@@ -4,4 +4,5 @@
 	branch = master
 [submodule "modules/cvfpu"]
 	path = modules/cvfpu
-	url = git@github.com:openhwgroup/cvfpu.git
+	url = https://github.com/openhwgroup/cvfpu.git
+	branch = develop
