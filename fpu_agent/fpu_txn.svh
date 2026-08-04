@@ -144,8 +144,8 @@ class fpu_txn extends uvm_sequence_item;
     constraint double_mant_c {
         foreach (m_fp_op_type[i]) {
             m_fp_op_type[i] inside {ZERO, INF}         -> m_fp_double_operands[i].mantissa == '0;
-            m_fp_op_type[i] inside {QNAN}              -> m_fp_double_operands[i].mantissa != '0;
-            m_fp_op_type[i] inside {SNAN}              -> m_fp_double_operands[i].mantissa[FP64_MAN_BITS-1] == 1'b0;
+            m_fp_op_type[i] inside {QNAN}              -> (m_fp_double_operands[i].mantissa != '0) && (m_fp_double_operands[i].mantissa[FP64_MAN_BITS-1] == 1'b1);
+            m_fp_op_type[i] inside {SNAN}              -> (m_fp_double_operands[i].mantissa != '0) && (m_fp_double_operands[i].mantissa[FP64_MAN_BITS-1] == 1'b0);
             m_fp_op_type[i] inside {SUBNORMAL, NORMAL} -> {
                 (m_fp_mant_cfg[i] == ALL_ZEROS)    ->  m_fp_double_operands[i].mantissa == '0;
                 (m_fp_mant_cfg[i] == ALL_ONES)     ->  m_fp_double_operands[i].mantissa == '1;
@@ -158,8 +158,8 @@ class fpu_txn extends uvm_sequence_item;
     constraint single_mant_c {
         foreach (m_fp_op_type[i]) {
             m_fp_op_type[i] inside {ZERO, INF}         -> m_fp_single_operands[i].mantissa == '0;
-            m_fp_op_type[i] inside {QNAN}              -> m_fp_single_operands[i].mantissa != '0;
-            m_fp_op_type[i] inside {SNAN}              -> m_fp_single_operands[i].mantissa[FP32_MAN_BITS-1] == 1'b0;
+            m_fp_op_type[i] inside {QNAN}              -> (m_fp_single_operands[i].mantissa != '0) && (m_fp_single_operands[i].mantissa[FP32_MAN_BITS-1] == 1'b1);
+            m_fp_op_type[i] inside {SNAN}              -> (m_fp_single_operands[i].mantissa != '0) && (m_fp_single_operands[i].mantissa[FP32_MAN_BITS-1] == 1'b0);
             m_fp_op_type[i] inside {SUBNORMAL, NORMAL} -> {
                 (m_fp_mant_cfg[i] == ALL_ZEROS)    ->  m_fp_single_operands[i].mantissa == '0;
                 (m_fp_mant_cfg[i] == ALL_ONES)     ->  m_fp_single_operands[i].mantissa == '1;
@@ -174,18 +174,18 @@ class fpu_txn extends uvm_sequence_item;
             if (m_fp_op_type[i] inside {ZERO, INF}) {
                 m_fp_half_operands[i].mantissa == '0;
             } else if (m_fp_op_type[i] == QNAN) {
-                m_fp_half_operands[i].mantissa != '0;
+                (m_fp_half_operands[i].mantissa != '0) && (m_fp_half_operands[i].mantissa[FP16_MAN_BITS-1] == 1'b1);
             } else if (m_fp_op_type[i] == SNAN) {
-                m_fp_half_operands[i].mantissa[FP16_MAN_BITS-1] == 1'b0;
+                (m_fp_half_operands[i].mantissa != '0) && (m_fp_half_operands[i].mantissa[FP16_MAN_BITS-1] == 1'b0);
             } else if (m_fp_op_type[i] == SUBNORMAL) {
                 (m_fp_mant_cfg[i] == ALL_ONES)     ->  m_fp_half_operands[i].mantissa == '1;
                 (m_fp_mant_cfg[i] == WALKING_ONE)  ->  $countones(m_fp_half_operands[i].mantissa) == 1;
-                (m_fp_mant_cfg[i] == WALKING_ZERO) ->  $countones(m_fp_half_operands[i].mantissa) == 10;
+                (m_fp_mant_cfg[i] == WALKING_ZERO) ->  $countones(m_fp_half_operands[i].mantissa) == 9;
             } else {
                 (m_fp_mant_cfg[i] == ALL_ZEROS)    ->  m_fp_half_operands[i].mantissa == '0;
                 (m_fp_mant_cfg[i] == ALL_ONES)     ->  m_fp_half_operands[i].mantissa == '1;
                 (m_fp_mant_cfg[i] == WALKING_ONE)  ->  $countones(m_fp_half_operands[i].mantissa) == 1;
-                (m_fp_mant_cfg[i] == WALKING_ZERO) ->  $countones(m_fp_half_operands[i].mantissa) == 10;
+                (m_fp_mant_cfg[i] == WALKING_ZERO) ->  $countones(m_fp_half_operands[i].mantissa) == 9;
             }
         }
     }
@@ -244,7 +244,7 @@ class fpu_txn extends uvm_sequence_item;
     constraint unused_c { m_prec == 0; }
 
     constraint imm_c { (m_operation == FCVT_F2F ) -> m_imm inside {0, 1, 2};
-                        m_operation inside {FCVT_F2I, FCVT_I2F } -> m_imm inside {0, 1, 2, 3}; // m_imm[1:0] encodes destination interger format for F2I and source integer format for I2F
+                        m_operation inside {FCVT_F2I, FCVT_I2F } -> m_imm inside {0, 1, 2, 3}; // m_imm[1:0] encodes destination integer format for F2I and source integer format for I2F
                 }
 
     constraint fpu_operator_c { m_operation inside {[int'(FADD) : int'(FCLASS)]} ; }

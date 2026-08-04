@@ -122,11 +122,7 @@ The regression suite is defined in the `simu/fpu_reg_list` file. Each line in th
 - **Test Name:** The UVM test class to run.
 - **Number of Runs:** How many times to run that test, each one has a different randomly generated seed
 
-Edit this file to decrease/increase the number of runs. By default, 700 random regression tests are performed (there must be at least 2 lines in the file):
-```
-fpu_random_test 350
-fpu_random_test 350
-```
+Edit this file to decrease/increase the number of runs.
 
 Check the `testplan` for more details on the available tests.
 ```

@@ -137,10 +137,10 @@ package fpu_common_pkg;
         * Compute floating point exponent (unbiased)
         */
     function logic [10:0] get_exp(logic [CVA6Cfg.FLen-1:0] value, logic [1:0] fmt);
-        unique case (fmt) 
-            2'h0: return value[fpnew_pkg::man_bits(fpnew_pkg::FP32) +: fpnew_pkg::exp_bits(fpnew_pkg::FP32)];
-            2'h1: return value[fpnew_pkg::man_bits(fpnew_pkg::FP64) +: fpnew_pkg::exp_bits(fpnew_pkg::FP64)];
-            2'h2: return value[fpnew_pkg::man_bits(fpnew_pkg::FP16) +: fpnew_pkg::exp_bits(fpnew_pkg::FP16)];
+        unique case (fmt)
+            2'h0: return value[fpnew_pkg::man_bits(fpnew_pkg::FP32) +: fpnew_pkg::exp_bits(fpnew_pkg::FP32)]; // Selects 8 bits starting from bit 23 (mantissa bits) for FP32
+            2'h1: return value[fpnew_pkg::man_bits(fpnew_pkg::FP64) +: fpnew_pkg::exp_bits(fpnew_pkg::FP64)]; // Selects 11 bits starting from bit 52 (mantissa bits) for FP64
+            2'h2: return value[fpnew_pkg::man_bits(fpnew_pkg::FP16) +: fpnew_pkg::exp_bits(fpnew_pkg::FP16)]; // Selects 5 bits starting from bit 10 (mantissa bits) for FP16
         endcase
     endfunction
 
@@ -161,7 +161,7 @@ package fpu_common_pkg;
 
         FP_WIDTH = fpnew_pkg::fp_width(fpnew_pkg::fp_format_e'(fmt));
 
-        fp_mask  = (1 << (CVA6Cfg.XLEN - FP_WIDTH)) - 1;
+        fp_mask  = (64'b1 << (CVA6Cfg.XLEN - FP_WIDTH)) - 1;
 
         // NaN-box check
         return ((value & fp_mask<<FP_WIDTH) >> FP_WIDTH) == fp_mask;
@@ -170,7 +170,7 @@ package fpu_common_pkg;
         /**
         * Classify floating point operand
         */
-    function classmask_e classify_operand(logic [CVA6Cfg.FLen-1:0] value, logic [1:0] fmt);
+    function fpnew_pkg::classmask_e classify_operand(logic [CVA6Cfg.FLen-1:0] value, logic [1:0] fmt);
         logic        sign;
         logic [10:0] exponent;
         logic [51:0] mantissa;
@@ -200,7 +200,7 @@ package fpu_common_pkg;
         is_qnan    = (exp_all_ones && mantissa != '0 && mantissa_msb == 1'b1);
 
         `uvm_info("CLASSIFICATION", $sformatf("sign=%b, exp=%0h, mant=%0h, zero=%b, subnorm=%b, normal=%b, inf=%b, snan=%b, qnan=%b", 
-                sign, exponent, mantissa, is_zero, is_subnorm, is_normal, is_inf, is_snan, is_qnan), UVM_LOW);
+                sign, exponent, mantissa, is_zero, is_subnorm, is_normal, is_inf, is_snan, is_qnan), UVM_MEDIUM);
 
         if (is_qnan) return fpnew_pkg::QNAN;
         if (is_snan) return fpnew_pkg::SNAN;
