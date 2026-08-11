@@ -122,11 +122,7 @@ The regression suite is defined in the `simu/fpu_reg_list` file. Each line in th
 - **Test Name:** The UVM test class to run.
 - **Number of Runs:** How many times to run that test, each one has a different randomly generated seed
 
-Edit this file to decrease/increase the number of runs. By default, 700 random regression tests are performed (there must be at least 2 lines in the file):
-```
-fpu_random_test 350
-fpu_random_test 350
-```
+Edit this file to decrease/increase the number of runs.
 
 Check the `testplan` for more details on the available tests.
 ```
@@ -145,7 +141,7 @@ The regression tests run automatically in batch mode and with the dump option en
 * The current verification environment targets the CVA6 core exclusively.
 * `RMM`, `ROD`, and `DYN` rounding modes have not been fully verified.
 * Vector floating-point operations are not supported by the current testbench.
-* Only `FP32` and `FP64` formats are thoroughly tested. Other formats are verified only within `F2F` (float-to-float) conversion operations.
+* Only `FP32`, `FP64`, and `FP16` formats are thoroughly tested. Other formats are verified only within `F2F` (float-to-float) conversion operations.
 * For `F2I` (float-to-integer) and `I2F` (integer-to-float) operations, only `INT32` and `INT64` integer formats are tested.
 
 ### 4.3 Adding a new test

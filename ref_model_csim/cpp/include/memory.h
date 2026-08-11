@@ -116,6 +116,7 @@ typedef struct
 
 int get_flags(bool sNaN_inputs, bool qNaN_inputs);
 int get_conv_flags();
+int get_i2f_conv_flags();
 
 
 //########## PRINTING #########################################################################################

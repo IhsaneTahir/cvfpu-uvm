@@ -277,80 +277,6 @@ class fpu_op_group_seq extends  fpu_base_sequence;
 
 endclass: fpu_op_group_seq
 
-class bug_f2i_seq extends  fpu_base_sequence;
-  
-    `uvm_object_utils( bug_f2i_seq );
-
-    fpu_txn       item;
-
-    // -------------------------------------------------------------------------
-    // Constructor
-    // -------------------------------------------------------------------------
-    function new( string name = "single_txn_sequence" );
-        super.new(name);
-    endfunction: new
-
-    // -------------------------------------------------------------------------
-    // Body
-    // -------------------------------------------------------------------------
-    virtual task body( );
-        super.body();
-
-        item = fpu_txn::type_id::create("fpu single request");
-
-        // --------------------------------------------------------------------------------
-        // to generate unique TID a list of tid in flight is passed on to the sequence
-        // --------------------------------------------------------------------------------
-        item.q_inflight_tid = my_sequencer.q_inflight_tid;
-
-        // --------------------------------
-        // Randomize transaction item
-        // --------------------------------
-        if ( !item.randomize() with 
-            {
-                m_operation == FCVT_F2I;
-                m_operand_a == 64'hc1e0000000000020;
-                m_fmt       == 1;
-                m_rm        == 0;
-                m_imm       == 0;
-            } ) 
-        begin
-            `uvm_fatal("body","Randomization failed");    
-        end
-        // --------------------------------------------------------------------------------
-        // It is used when the response is received from the driver
-        // --------------------------------------------------------------------------------
-        my_sequencer.q_inflight_tid[item.m_trans_id] = item.m_trans_id;
-
-        start_item( item );
-        finish_item( item );
-
-        // --------------------------------
-        // Randomize transaction item
-        // --------------------------------
-        if ( !item.randomize() with 
-            {
-                m_operation == FCVT_F2I;
-                m_operand_a == 64'hcf000000;
-                m_fmt       == 0;
-                m_rm        == 0;
-                m_imm       == 0;
-            } ) 
-        begin
-            `uvm_fatal("body","Randomization failed");    
-        end
-
-        // --------------------------------------------------------------------------------
-        // It is used when the response is received from the driver
-        // --------------------------------------------------------------------------------
-        my_sequencer.q_inflight_tid[item.m_trans_id] = item.m_trans_id;
-
-        start_item( item );
-        finish_item( item );
-  endtask: body
-
-endclass: bug_f2i_seq
-
 ///////////////////////////////////////////////////////////
 //              FPU UNIT OPERATION SEQUENCE
 //////////////////////////////////////////////////////////
@@ -387,44 +313,12 @@ class fpu_unit_seq extends  fpu_base_sequence;
             // --------------------------------
             if ( !item.randomize() with 
                 {
-                    m_nan_box == 0;
-                    m_operation inside {FDIV, FSQRT};
-                    m_fmt inside {0,2};
-                    m_imm == 0;
-                    //-----------------------------------------------
-                    //  ISSUE #3123 in CVA6
-                    // m_nan_box == 0;
-                    // m_operation == FDIV;
-                    // m_operand_a == 'hc1ddd216;
-                    // m_operand_b == 'hbae084b4;
-                    // m_fmt == 0; // 32bits
-                    // m_imm == 0;
-                    //-----------------------------------------------
-                    //  ISSUE #145 + PR #147 ( tested and it works )
-                    // m_operation == FCVT_F2I;
-                    // m_operand_a == 64'hC1E0000000000000;
-                    // m_fmt == 1;
-                    // m_imm == 0;
-                    // m_rm == 0;
-                    //-----------------------------------------------
-                    // ISSUE #120 -> no error in current version with THMULTI
-                    // m_operation == FDIV;
-                    // m_operand_a == 'h0;
-                    // m_operand_b == 'h7F800000;
-                    // m_fmt == 0;
-                    //-----------------------------------------------
-                    // ISSUE #139 -> no error in current version with THMULTI
-                    // m_operation == FDIV;
-                    // m_operand_a == 'h7f7fffff;
-                    // m_operand_b == 'h3f7fffff;
-                    // m_fmt == 0;
-                    //-----------------------------------------------
-                    // ISSUE #121 -> no error in current version with THMULTI
-                    // m_operation == FDIV;
-                    // m_operand_a == 'h00000001;
-                    // m_operand_b == 'h3F800000;
-                    // m_fmt       == 0;
-                    //-----------------------------------------------
+                    m_nan_box == 1;
+                    m_operand_a == 'h38222f17;
+                    m_operand_b == 'h38222f18;
+                    m_operation == FSQRT;
+                    m_fmt == 'h0; // FP32
+                    m_rm == 2; // RDN
                 } ) 
             begin
                 `uvm_fatal("body","Randomization failed");    

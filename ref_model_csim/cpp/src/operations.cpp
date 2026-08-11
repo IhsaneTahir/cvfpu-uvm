@@ -575,7 +575,7 @@ int fcvt_i2f(uint32_t* result, const uint32_t* op1, int is_signed, int int_forma
         }
         break;
     }
-	exception = get_conv_flags();
+    exception = get_i2f_conv_flags();
 
     mpfr2IEEElike(result, result_mpfr, env, rounding_mode, false);
 	return exception;
@@ -643,16 +643,37 @@ int fsgnj(uint32_t* result, const uint32_t* op1, const uint32_t* op2, mpfr_rnd_t
 
 int fmv_f2x (uint32_t* result, const uint32_t* op1, environment env, int nchunks)
 {   
-    for (int i = 0; i < nchunks; i++)
-    {
-        if (env.bis == 63) {
+    const int src_bits   = env.bis + 1;
+    const int total_bits = nchunks * 32;
+    const bool sign_bit  = IEEElike_get_S(op1, env.es, MBITS(env));
+    const uint32_t sign_fill = sign_bit ? 0xFFFFFFFFu : 0x00000000u;
+
+    // If the source is wider/equal, keep the low words only.
+    if (src_bits >= total_bits) {
+        for (int i = 0; i < nchunks; i++) {
             result[i] = op1[i];
-        } else {
-            result[i] = (i == 0)                              ? op1[i]     : 
-                        IEEElike_get_S(op1,env.es,MBITS(env)) ? 0xFFFFFFFF :
-                                                                0x0;
         }
+        return 0;
     }
+
+    const int full_src_words = src_bits / 32;
+    const int rem_src_bits   = src_bits % 32;
+
+    for (int i = 0; i < nchunks; i++) {
+        result[i] = sign_fill;
+    }
+
+    for (int i = 0; i < full_src_words; i++) {
+        result[i] = op1[i];
+    }
+
+    if (rem_src_bits != 0) {
+        const uint32_t low_mask = (1u << rem_src_bits) - 1u;
+        const uint32_t low_bits = op1[full_src_words] & low_mask;
+        const uint32_t high_bits = sign_fill & ~low_mask;
+        result[full_src_words] = low_bits | high_bits;
+    }
+
     return 0;
 }
 
