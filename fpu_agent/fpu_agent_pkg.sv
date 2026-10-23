@@ -41,9 +41,11 @@ package fpu_agent_pkg;
    `include "fpu_monitor.svh"
    `include "fpu_sequences.svh"
    `include "fpu_conv_seq.svh"
+`ifdef FPU_FUNC_COV_EN
    `include "fpu_cov_model/fpu_conv_cov.svh"
    `include "fpu_cov_model/fpu_comput_cov.svh"
    `include "fpu_cov_model/fpu_noncomput_cov.svh"
    `include "fpu_cov_model/fpu_agent_cov_model.svh"
-   `include "fpu_agent.svh" 
+`endif
+   `include "fpu_agent.svh"
 endpackage

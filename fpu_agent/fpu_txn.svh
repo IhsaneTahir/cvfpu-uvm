@@ -37,7 +37,7 @@ class fpu_txn extends uvm_sequence_item;
     rand logic [CVA6Cfg.TRANS_ID_BITS-1:0] m_trans_id;
     rand logic [1:0]                       m_fmt;          // FP format
     rand logic [2:0]                       m_rm;           // FP rounding mode
-    rand logic [2:0]                       m_frm;          // ( ?? ) For now unused
+    rand logic [2:0]                       m_frm;          // Dynamic rounding mode (fcsr.frm), used when m_rm == DYN
     rand logic [6:0]                       m_prec;         // FP precision
 
     rand int                               m_delay;        // Delay between two consecutive txns
@@ -67,14 +67,15 @@ class fpu_txn extends uvm_sequence_item;
         RANDOM_INT
     } int_type_cfg_e;
 
-    logic [CVA6Cfg.XLEN-1:0] special_int_values[7] = '{
+    logic [CVA6Cfg.XLEN-1:0] special_int_values[8] = '{
         64'h7FFF_FFFF_FFFF_FFFF, // IN64_MAX
         64'hFFFF_FFFF_FFFF_FFFF, // UINT64_MAX
         64'h7FFF_FFFF,           // IN32_MAX
         64'hFFFF_FFFF,           // UINT32_MAX
         64'h0,                   // Zero
         64'h8000_0000_0000_0000, // INT64_MIN
-        64'h8000_0000            // INT32_MIN
+        64'h8000_0000,           // INT32_MIN
+        64'h7FF                  // Largest value exactly representable in FP16 (2047)
     };
              
     // List containing in flight transcation IDs
@@ -254,7 +255,8 @@ class fpu_txn extends uvm_sequence_item;
     constraint int_operand_c { (m_int_op_type == BOUND_VALUES) -> {m_int_operand inside {special_int_values} }; }
 
     // RMM -> Not supported by MPFR library
-    constraint rm_c { m_rm <= 3; }
+    constraint rm_c { m_rm inside {[0:3], fpnew_pkg::DYN}; }
+    constraint frm_c { m_frm <= 3; }
 
     constraint rm_fcmp_c { m_operation inside {FSGNJ, FCMP} -> m_rm <= 2; }
     

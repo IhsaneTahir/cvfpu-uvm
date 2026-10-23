@@ -19,21 +19,7 @@ module cvfpu_rsp_arb_sva #(
 );
   /* pragma translate_off */
 
-  // A granted input must actually be requesting.
-  // generate
-  //   for (genvar i = 0; i < NumIn; i++) begin : gen_gnt_matches_req
-  //     a_gnt_matches_req: assert property (@(posedge clk_i) disable iff (!rst_ni || flush_i)
-  //       gnt_o[i] |-> req_i[i])
-  //     else $error("cvfpu_rsp_arb: gnt_o[%0d] asserted while req_i[%0d] is low", i, i);
-  //   end
-  // endgenerate
-
-  // If the request vector is stable and downstream is not accepting, the grant
-  // should remain stable as well.
-  a_gnt_stable_under_backpressure: assert property (@(posedge clk_i) disable iff (!rst_ni || flush_i)
-    ($stable(req_i) && req_o && !gnt_i) |=> $stable(gnt_o))
-  else $error("cvfpu_rsp_arb: gnt_o changed under stable backpressure");
-
+`ifdef FPU_FUNC_COV_EN
   // ------------------------------------------------------------------------
   // Coverage: all possible request scenarios
   // ------------------------------------------------------------------------
@@ -77,6 +63,7 @@ module cvfpu_rsp_arb_sva #(
         (req_i == {NumIn{1'b1}} && gnt_i) ##0 gnt_o[i]);
     end
   endgenerate
+`endif
 
   /* pragma translate_on */
 

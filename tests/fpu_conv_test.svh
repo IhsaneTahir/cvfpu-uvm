@@ -45,7 +45,6 @@ class fpu_conv_test extends base_test;
     virtual task pre_main_phase(uvm_phase phase);
       
       // Create new sequence
-      // m_seq = fpu_conv_seq::type_id::create("seq");  
       m_seq = fpu_conv_seq::type_id::create("seq");  
       if(!$cast(base_sequence, m_seq)) `uvm_fatal("CAST FAILED", "cannot cast base seqence");
 

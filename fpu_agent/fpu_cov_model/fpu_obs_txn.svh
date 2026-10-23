@@ -58,11 +58,11 @@ class fpu_obs_txn extends uvm_object;
     // Format helpers
     // -------------------------------------------------------------------------
     // src FP format for each operation type
-    function logic src_fp_fmt();
+    function logic [1:0] src_fp_fmt();
         if (m_operation == FCVT_F2F)
-            return m_imm[0];   // m_imm[1:0] = src fmt; [0] selects FP32 vs FP64
+            return m_imm[1:0]; // m_imm[1:0] = src fmt (00=FP32, 01=FP64, 10=FP16)
         else
-            return m_fmt[0];   // FCLASS, FCVT_F2I
+            return m_fmt;      // FCLASS, FCVT_F2I
     endfunction
 
     // int width for F2I / I2F
@@ -93,28 +93,28 @@ class fpu_obs_txn extends uvm_object;
     function f2i_domains_e classify_f2i_stim();
         unique case (m_imm[1:0])
             2'b00:  // INT32
-                if ((get_exp(m_operand_a, m_fmt) >= 31) && flag_nv())
+                if (flag_nv())
                     return (get_operand_sign(m_operand_a, m_fmt)) ? F2I_OOR_INT32_NEG : F2I_OOR_INT32_POS;
                 else if (flag_nx())
                     return F2I_BOUND_INEXACT_INT32;
                 else if (no_flags())
                     return F2I_BOUND_EXACT_INT32;
             2'b01:  // UINT32
-                if ((get_exp(m_operand_a, m_fmt) >= 32) && flag_nv())
+                if (flag_nv())
                     return (get_operand_sign(m_operand_a, m_fmt)) ? F2I_OOR_UINT32_NEG : F2I_OOR_UINT32_POS;
                 else if (flag_nx())
                     return F2I_BOUND_INEXACT_UINT32;
                 else if (no_flags())
                     return F2I_BOUND_EXACT_UINT32;
             2'b10:  // INT64
-                if ((get_exp(m_operand_a, m_fmt) >= 63) && flag_nv())
+                if (flag_nv())
                     return (get_operand_sign(m_operand_a, m_fmt)) ? F2I_OOR_INT64_NEG : F2I_OOR_INT64_POS;
                 else if (flag_nx())
                     return F2I_BOUND_INEXACT_INT64;
                 else if (no_flags())
                     return F2I_BOUND_EXACT_INT64;
             2'b11:  // UINT64
-                if ((get_exp(m_operand_a, m_fmt) >= 64) && flag_nv())
+                if (flag_nv())
                     return (get_operand_sign(m_operand_a, m_fmt)) ? F2I_OOR_UINT64_NEG : F2I_OOR_UINT64_POS;
                 else if (flag_nx())
                     return F2I_BOUND_INEXACT_UINT64;

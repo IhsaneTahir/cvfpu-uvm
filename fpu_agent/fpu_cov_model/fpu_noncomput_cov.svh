@@ -33,7 +33,7 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
         logic [1:0]            op,        // 0=FLE, 1=FLT, 2=FEQ
         fpnew_pkg::classmask_e op1_class,
         fpnew_pkg::classmask_e op2_class,
-        logic                  fmt,       // 0 = FP32, 1 = FP64
+        logic [1:0]            fmt,       // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic [4:0]            flags,
         logic                  result
     );
@@ -45,8 +45,12 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
             bins cmp_eq  = {2'b10}; // FEQ
         }
 
-        cp_fmt: coverpoint fmt;
-        
+        cp_fmt: coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
+
         cp_op1_class: coverpoint op1_class; // Covers all 10 classes
         cp_op2_class: coverpoint op2_class; // Covers all 10 classes
 
@@ -68,7 +72,7 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
     // -------------------------------------------------------------------------
     covergroup cg_classify with function sample(
         fpnew_pkg::classmask_e op_class, // Inferred from input operand classification
-        logic                  fmt,      // 0 = FP32, 1 = FP64
+        logic [1:0]            fmt,      // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic [9:0]            result
     );
         option.per_instance = 1;
@@ -89,7 +93,11 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
             illegal_bins multi_bit = default;        // only one bit legal at a time
         }
 
-        cp_fmt: coverpoint fmt;
+        cp_fmt: coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
 
         // Full cross: also sweep rounding modes (verifies rm is irrelevant)
         cx_fclass_x_fmt_x_rnd: cross cp_op_class, cp_fmt;
@@ -101,12 +109,16 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
     // -------------------------------------------------------------------------
     covergroup cg_move_f2x with function sample(
         fpnew_pkg::classmask_e op_class,
-        logic                  fmt
+        logic [1:0]            fmt
     );
         option.per_instance = 1;
 
         cp_op_class: coverpoint op_class;
-        cp_fmt:      coverpoint fmt;
+        cp_fmt:      coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
 
         cx_op_class_x_fmt: cross cp_op_class, cp_fmt;
     endgroup
@@ -116,7 +128,7 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
     // -------------------------------------------------------------------------
     covergroup cg_sign_injection with function sample(
         logic [1:0]            op,
-        logic                  fmt,
+        logic [1:0]            fmt,
         fpnew_pkg::classmask_e op_class,
         logic                  op2_sign
     );
@@ -131,7 +143,11 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
             ignore_bins others = {2'b11};
         }
 
-        cp_fmt:  coverpoint fmt;
+        cp_fmt:  coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
 
         cp_op2_sign: coverpoint op2_sign;
         
@@ -159,7 +175,7 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
                     t.m_rm[1:0], // 0=FLE, 1=FLT, 2=FEQ
                     fpu_common_pkg::classify_operand(t.m_operand_a, t.m_fmt),
                     fpu_common_pkg::classify_operand(t.m_operand_b, t.m_fmt),
-                    t.m_fmt[0],
+                    t.m_fmt,
                     t.status_o,
                     t.result_o[0]
                 );
@@ -168,7 +184,7 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
             FCLASS: begin
                 cg_classify.sample(
                     fpu_common_pkg::classify_operand(t.m_operand_a, t.m_fmt),
-                    t.m_fmt[0],
+                    t.m_fmt,
                     t.result_o[9:0]
                 );
             end
@@ -176,7 +192,7 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
             FSGNJ: begin
                 cg_sign_injection.sample(
                     t.m_rm[1:0], // 0=FSGNJ, 1=FSGNJN, 2=FSGNJX
-                    t.m_fmt[0],
+                    t.m_fmt,
                     fpu_common_pkg::classify_operand(t.m_operand_a, t.m_fmt),
                     fpu_common_pkg::get_operand_sign(t.m_operand_b, t.m_fmt)
                 );
@@ -185,7 +201,7 @@ class fpu_noncomput_cov extends uvm_subscriber #(fpu_obs_txn);
             FMV_F2X: begin
                 cg_move_f2x.sample(
                     fpu_common_pkg::classify_operand(t.m_operand_a, t.m_fmt),
-                    t.m_fmt[0]
+                    t.m_fmt
                 );
             end
         endcase

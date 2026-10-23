@@ -74,9 +74,6 @@ package fpu_common_pkg;
 
     localparam int unsigned FP32_EXP_BITS = fpnew_pkg::exp_bits(fpnew_pkg::FP32);
     localparam int unsigned FP32_MAN_BITS = fpnew_pkg::man_bits(fpnew_pkg::FP32);
-    localparam int unsigned EMIN_FP32 = 1 - fpnew_pkg::bias(fpnew_pkg::FP32) + fpnew_pkg::bias(fpnew_pkg::FP64);
-    localparam int unsigned EMAX_FP32 = fpnew_pkg::bias(fpnew_pkg::FP32) + fpnew_pkg::bias(fpnew_pkg::FP64);
-    localparam int unsigned EMAX_FP64 = 2*fpnew_pkg::bias(fpnew_pkg::FP64);
     
     localparam int unsigned FP16_EXP_BITS = fpnew_pkg::exp_bits(fpnew_pkg::FP16);
     localparam int unsigned FP16_MAN_BITS = fpnew_pkg::man_bits(fpnew_pkg::FP16);
@@ -229,11 +226,6 @@ package fpu_common_pkg;
         endcase
     endfunction: get_operand_sign
 
-
-    // Coverage enablement flag
-    typedef struct {
-        bit coverage_enable = 1;  // Control coverage collection
-    } fpu_cov_cfg_t;
 
     // Macro for per-instance coverage tracking
     `define per_instance_fcov option.per_instance = 1; option.name = name;

@@ -33,7 +33,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
         ariane_pkg::fu_op      op,
         fpnew_pkg::classmask_e op1_class,
         fpnew_pkg::classmask_e op2_class,
-        logic                  fmt,       // 0 = FP32, 1 = FP64
+        logic [1:0]            fmt,       // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic [2:0]            rnd_mode,
         logic [4:0]            flags,         // {NV, DZ, OF, UF, NX}
         fpnew_pkg::classmask_e res_class
@@ -61,7 +61,11 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
             ignore_bins snan = {fpnew_pkg::SNAN};
         }
 
-        cp_fmt: coverpoint fmt;
+        cp_fmt: coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
 
         cp_rnd_mode: coverpoint rnd_mode {
             bins rne = {3'd0};
@@ -133,7 +137,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
         ariane_pkg::fu_op      op,
         fpnew_pkg::classmask_e op1_class,
         fpnew_pkg::classmask_e op2_class,
-        logic                  fmt,       // 0 = FP32, 1 = FP64
+        logic [1:0]            fmt,       // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic [2:0]            rnd_mode,
         logic [4:0]            flags,         // {NV, DZ, OF, UF, NX}
         fpnew_pkg::classmask_e res_class
@@ -161,7 +165,11 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
             ignore_bins snan = {fpnew_pkg::SNAN};
         }
 
-        cp_fmt: coverpoint fmt;
+        cp_fmt: coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
 
         cp_rnd_mode: coverpoint rnd_mode {
             bins rne = {3'd0};
@@ -194,7 +202,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
     // -------------------------------------------------------------------------
     covergroup cg_fsqrt with function sample(
         fpnew_pkg::classmask_e op1_class,
-        logic                  fmt,       // 0 = FP32, 1 = FP64
+        logic [1:0]            fmt,       // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic [2:0]            rnd_mode,
         logic [4:0]            flags,         // {NV, DZ, OF, UF, NX}
         fpnew_pkg::classmask_e res_class
@@ -212,7 +220,11 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
             ignore_bins snan = {fpnew_pkg::SNAN};
         }
 
-        cp_fmt: coverpoint fmt;
+        cp_fmt: coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
 
         cp_rnd_mode: coverpoint rnd_mode {
             bins rne = {3'd0};
@@ -247,7 +259,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
         logic                  min_max, // 0 = FMIN, 1 = FMAX
         fpnew_pkg::classmask_e op1_class,
         fpnew_pkg::classmask_e op2_class,
-        logic                  fmt,
+        logic [1:0]            fmt,       // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic [4:0]            flags,         // {NV, DZ, OF, UF, NX}
         fpnew_pkg::classmask_e res_class
     );
@@ -274,7 +286,11 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
             ignore_bins snan = {fpnew_pkg::SNAN};
         }
 
-        cp_fmt: coverpoint fmt;
+        cp_fmt: coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
 
         cp_flags: coverpoint flags {
             bins NO_EXCEPTION = {'h0};
@@ -293,7 +309,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
         fpnew_pkg::classmask_e op1_class,
         fpnew_pkg::classmask_e op2_class,
         fpnew_pkg::classmask_e op3_class,
-        logic                  fmt,
+        logic [1:0]            fmt,       // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic [2:0]            rnd_mode,
         logic [4:0]            flags,         // {NV, DZ, OF, UF, NX}
         fpnew_pkg::classmask_e res_class
@@ -323,7 +339,11 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
             ignore_bins snan = {fpnew_pkg::SNAN};
         }
 
-        cp_fmt: coverpoint fmt;
+        cp_fmt: coverpoint fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
+        }
         
         cp_rnd_mode:  coverpoint rnd_mode {
             bins rne = {3'd0};
@@ -363,7 +383,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
                     t.m_operation,
                     fpu_common_pkg::classify_operand(t.m_operand_b, t.m_fmt),
                     fpu_common_pkg::classify_operand(t.m_imm, t.m_fmt),
-                    t.m_fmt[0],
+                    t.m_fmt,
                     t.m_rm,
                     t.status_o,
                     fpu_common_pkg::classify_operand(t.result_o, t.m_fmt)
@@ -376,7 +396,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
                     t.m_operation,
                     fpu_common_pkg::classify_operand(t.m_operand_a, t.m_fmt),
                     fpu_common_pkg::classify_operand(t.m_operand_b, t.m_fmt),
-                    t.m_fmt[0],
+                    t.m_fmt,
                     t.m_rm,
                     t.status_o,
                     fpu_common_pkg::classify_operand(t.result_o, t.m_fmt)
@@ -387,7 +407,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
 
                 cg_fsqrt.sample(
                     fpu_common_pkg::classify_operand(t.m_operand_a, t.m_fmt),
-                    t.m_fmt[0],
+                    t.m_fmt,
                     t.m_rm,
                     t.status_o,
                     fpu_common_pkg::classify_operand(t.result_o, t.m_fmt)
@@ -400,7 +420,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
                     t.m_rm[0], // min_max: FMIN if rm[0]=0, FMAX if rm[0]=1
                     fpu_common_pkg::classify_operand(t.m_operand_a, t.m_fmt),
                     fpu_common_pkg::classify_operand(t.m_operand_b, t.m_fmt),
-                    t.m_fmt[0],
+                    t.m_fmt,
                     t.status_o,
                     fpu_common_pkg::classify_operand(t.result_o, t.m_fmt)
                 );
@@ -413,7 +433,7 @@ class fpu_comput_cov extends uvm_subscriber #(fpu_obs_txn);
                     fpu_common_pkg::classify_operand(t.m_operand_a, t.m_fmt),
                     fpu_common_pkg::classify_operand(t.m_operand_b, t.m_fmt),
                     fpu_common_pkg::classify_operand(t.m_imm, t.m_fmt),
-                    t.m_fmt[0],
+                    t.m_fmt,
                     t.m_rm,
                     t.status_o,
                     fpu_common_pkg::classify_operand(t.result_o, t.m_fmt)

@@ -23,23 +23,12 @@
  *                                     crossed with int_src_width, dst_fmt,
  *                                     unsigned flag, and rnd_mode.
  *
- *                    cg_f2f_widen   — FCVT_F2F widening (FP32→FP64):
- *                                     FP32 input class × output flags × rnd_mode.
+ *                    cg_f2f_widen   — FCVT_F2F widening (H→S, H→D, S→D):
+ *                                     src/dst fmt × input class × output flags × rnd_mode.
  *
- *                    cg_f2f_narrow  — FCVT_F2F narrowing (FP64→FP32):
- *                                     FP64 input zone × output flags × rnd_mode.
+ *                    cg_f2f_narrow  — FCVT_F2F narrowing (S→H, D→H, D→S):
+ *                                     src/dst fmt × input zone × output flags × rnd_mode.
  *
- *  Instantiation
- *  ─────────────
- *  Instantiate inside the scoreboard or a dedicated coverage component and
- *  connect its analysis_export to the monitor's TLM broadcast port:
- *
- *    fpu_conv_cov  m_conv_cov;
- *    m_conv_cov = fpu_conv_cov::type_id::create("m_conv_cov", this);
- *    monitor.ap.connect(m_conv_cov.analysis_export);
- *
- *  The monitor must write fpu_obs_txn items (not raw fpu_txn items) so
- *  that result_o and status_o are populated before the write() call.
  */
 
 class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
@@ -57,7 +46,7 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
     covergroup cg_f2i with function sample(
         fpnew_pkg::classmask_e op_class, // Inferred from input operand classification
         fpu_obs_txn::f2i_domains_e f2i_domains,
-        logic       src_fmt,       // 0 = FP32, 1 = FP64
+        logic [1:0] src_fmt,       // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic       int_wide,      // 0 = INT32 dst, 1 = INT64 dst
         logic       unsigned_flag, // 0 = signed, 1 = unsigned
         logic [2:0] rnd_mode
@@ -88,8 +77,9 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
 
         // ---- Format / mode dimensions ---------------------------------------
         cp_src_fmt: coverpoint src_fmt {
-            bins fp32 = {1'b0};
-            bins fp64 = {1'b1};
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
         }
 
         cp_int_wide: coverpoint int_wide {
@@ -141,7 +131,7 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
     covergroup cg_i2f with function sample(
         fpu_obs_txn::i2f_stim_kind_e stim_kind,
         logic       int_wide,      // 0 = INT32 src, 1 = INT64 src
-        logic       dst_fmt,       // 0 = FP32, 1 = FP64
+        logic [1:0] dst_fmt,       // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
         logic       unsigned_flag, // 0 = signed, 1 = unsigned
         logic [2:0] rnd_mode,
         logic [4:0] status         // {NV,DZ,OF,UF,NX}
@@ -158,8 +148,9 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
         }
 
         cp_dst_fmt: coverpoint dst_fmt {
-            bins fp32 = {1'b0};
-            bins fp64 = {1'b1};
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            bins fp16 = {2'b10};
         }
 
         cp_unsigned: coverpoint unsigned_flag {
@@ -214,13 +205,14 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
     endgroup : cg_i2f
 
     // =========================================================================
-    // Covergroup 4a — FCVT_F2F Widening (FP32 → FP64)
-    //   Covers all FP32 input classes and verifies the flag profile.
-    //   Widening is always exact for normal and subnormal values → OF/UF/NX
-    //   should never be set; the cross highlights any unexpected flag patterns.
+    // Covergroup 4a — FCVT_F2F Widening (H→S, H→D, S→D)
+    //   Covers input classes for every enabled widening pair and verifies the
+    //   flag profile. Widening is always exact for normal and subnormal values
+    //   → OF/UF/NX should never be set; the cross highlights unexpected flags.
     // =========================================================================
     covergroup cg_f2f_widen with function sample(
-        // fpu_obs_txn::f2f_wide_in_e input_class,
+        logic [1:0] src_fmt,              // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
+        logic [1:0] dst_fmt,
         fpnew_pkg::classmask_e op_class, // Inferred from input operand classification
         logic [4:0] status,
         logic [2:0] rnd_mode
@@ -228,6 +220,22 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
         type_option.merge_instances = 1;
         option.get_inst_coverage = 1;
         option.per_instance = 1;
+
+        cp_src_fmt: coverpoint src_fmt {
+            bins fp32 = {2'b00};
+            bins fp16 = {2'b10};
+            // FP64 is the widest of the 3 enabled formats: widening can never
+            // source from it (there's nothing wider to widen into).
+            ignore_bins unreachable_src = {2'b01};
+        }
+
+        cp_dst_fmt: coverpoint dst_fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            // FP16 is the narrowest of the 3 enabled formats: widening can
+            // never target it (there's nothing narrower to widen from).
+            ignore_bins unreachable_dst = {2'b10};
+        }
 
         cp_op_fclass: coverpoint op_class;
 
@@ -245,27 +253,51 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
             bins rup = {3'd3};
             ignore_bins rmm = {3'd4};
         }
+
+        // Which widening pair (H→S, H→D, S→D) was exercised. Same-format
+        // "widening" (FP32->FP32) isn't a widen at all and can't be hit.
+        cx_src_x_dst: cross cp_src_fmt, cp_dst_fmt {
+            ignore_bins same_fmt = binsof(cp_src_fmt.fp32) && binsof(cp_dst_fmt.fp32);
+        }
     endgroup : cg_f2f_widen
 
 
     // =========================================================================
-    // Covergroup 4b — FCVT_F2F Narrowing (FP64 → FP32)
-    //   Covers six FP64 input zones and crosses the resulting exception flags
-    //   with rounding mode.  All five rounding modes interact differently with
-    //   the OF and UF boundaries.
+    // Covergroup 4b — FCVT_F2F Narrowing (S→H, D→H, D→S)
+    //   Covers input zones for every enabled narrowing pair and crosses the
+    //   resulting exception flags with rounding mode. All (non-ignored)
+    //   rounding modes interact differently with the OF and UF boundaries.
     // =========================================================================
     covergroup cg_f2f_narrow with function sample(
+        logic [1:0] src_fmt,              // 2'b00=FP32, 2'b01=FP64, 2'b10=FP16
+        logic [1:0] dst_fmt,
         fpnew_pkg::classmask_e op_class,
         fpnew_pkg::classmask_e res_class,
         logic [4:0] status,
         logic [2:0] rnd_mode
     );
         option.per_instance = 1;
-        option.comment      = "FCVT_F2F narrowing FP64->FP32: input zone x flags x rnd_mode";
+        option.comment      = "FCVT_F2F narrowing (S->H, D->H, D->S): input zone x flags x rnd_mode";
+
+        cp_src_fmt: coverpoint src_fmt {
+            bins fp32 = {2'b00};
+            bins fp64 = {2'b01};
+            // FP16 is the narrowest of the 3 enabled formats: narrowing can
+            // never source from it (there's nothing narrower to narrow into).
+            ignore_bins unreachable_src = {2'b10};
+        }
+
+        cp_dst_fmt: coverpoint dst_fmt {
+            bins fp32 = {2'b00};
+            bins fp16 = {2'b10};
+            // FP64 is the widest of the 3 enabled formats: narrowing can
+            // never target it (there's nothing wider to narrow from).
+            ignore_bins unreachable_dst = {2'b01};
+        }
 
         cp_op_fclass: coverpoint op_class;
 
-        cp_res_fclass: coverpoint res_class {             
+        cp_res_fclass: coverpoint res_class {
             bins neg_inf     = {fpnew_pkg::NEGINF};
             bins neg_normal  = {fpnew_pkg::NEGNORM};
             bins neg_subnorm = {fpnew_pkg::NEGSUBNORM};
@@ -298,6 +330,12 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
         // ---- Full zone × rnd_mode cross ------------------------------------
         cx_zone_x_rnd: cross cp_op_fclass, cp_rnd_mode;
 
+        // Which narrowing pair (S→H, D→H, D→S) was exercised. Same-format
+        // "narrowing" (FP32->FP32) isn't a narrow at all and can't be hit.
+        cx_src_x_dst: cross cp_src_fmt, cp_dst_fmt {
+            ignore_bins same_fmt = binsof(cp_src_fmt.fp32) && binsof(cp_dst_fmt.fp32);
+        }
+
     endgroup : cg_f2f_narrow
 
 
@@ -324,7 +362,7 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
                 cg_i2f.sample(
                     t.classify_i2f_stim(),
                     t.int_wide(),
-                    t.m_fmt[0],
+                    t.m_fmt,
                     t.unsigned_op(),
                     t.m_rm,
                     t.status_o
@@ -333,22 +371,31 @@ class fpu_conv_cov extends uvm_subscriber #(fpu_obs_txn);
 
             // -----------------------------------------------------------------
             FCVT_F2F: begin
-                // m_imm[0] == 0 → widening (FP32 src → FP64 dst)
-                // m_imm[0] == 1 → narrowing (FP64 src → FP32 dst)
-                if (t.m_imm[1:0] == 2'b00 && t.m_fmt == 1) begin
+                // Source format is carried in m_imm[1:0]; destination format in m_fmt
+                logic [1:0] f2f_src_fmt = t.m_imm[1:0];
+                logic [1:0] f2f_dst_fmt = t.m_fmt;
+                int unsigned src_width = fpnew_pkg::fp_width(fpnew_pkg::fp_format_e'(f2f_src_fmt));
+                int unsigned dst_width = fpnew_pkg::fp_width(fpnew_pkg::fp_format_e'(f2f_dst_fmt));
+
+                if (src_width < dst_width) begin
                     cg_f2f_widen.sample(
-                        fpu_common_pkg::classify_operand(t.m_operand_a, t.m_imm[1:0]),
+                        f2f_src_fmt,
+                        f2f_dst_fmt,
+                        fpu_common_pkg::classify_operand(t.m_operand_a, f2f_src_fmt),
                         t.status_o,
                         t.m_rm
                     );
-                end else if (t.m_imm[1:0] == 2'b01 && t.m_fmt == 0) begin
+                end else if (src_width > dst_width) begin
                     cg_f2f_narrow.sample(
-                        fpu_common_pkg::classify_operand(t.m_operand_a, t.m_imm[1:0]), // FP32/FP64 src fmt depends on imm for F2F
-                        fpu_common_pkg::classify_operand(t.result_o, t.m_fmt),
+                        f2f_src_fmt,
+                        f2f_dst_fmt,
+                        fpu_common_pkg::classify_operand(t.m_operand_a, f2f_src_fmt),
+                        fpu_common_pkg::classify_operand(t.result_o, f2f_dst_fmt),
                         t.status_o,
                         t.m_rm
                     );
                 end
+                // src_width == dst_width: not a real conversion, not expected from the sequencer
             end
 
             default: ; // non-conversion operations: ignore silently

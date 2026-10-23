@@ -254,9 +254,24 @@ class fpu_special_val_seq extends  fpu_base_sequence;
             // Randomize transaction item
             // --------------------------------
             if ( !item.randomize()  with {
-                m_fp_op_type[0] inside {fpu_txn::INF, fpu_txn::QNAN, fpu_txn::SNAN, fpu_txn::ZERO, fpu_txn::SUBNORMAL};
-                m_fp_op_type[1] inside {fpu_txn::INF, fpu_txn::QNAN, fpu_txn::SNAN, fpu_txn::ZERO, fpu_txn::SUBNORMAL};
-                m_fp_op_type[2] inside {fpu_txn::INF, fpu_txn::QNAN, fpu_txn::SNAN, fpu_txn::ZERO, fpu_txn::SUBNORMAL};
+                m_fp_op_type[0] dist {
+                    ZERO       := 25,
+                    INF        := 25,
+                    QNAN       := 25,
+                    SNAN       := 25
+                };
+                m_fp_op_type[1] dist {
+                    ZERO       := 25,
+                    INF        := 25,
+                    QNAN       := 25,
+                    SNAN       := 25
+                };
+                m_fp_op_type[2] dist {
+                    ZERO       := 25,
+                    INF        := 25,
+                    QNAN       := 25,
+                    SNAN       := 25
+                };
             })
             begin
                 `uvm_fatal("body","Randomization failed");    

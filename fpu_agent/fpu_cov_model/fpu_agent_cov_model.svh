@@ -1,5 +1,6 @@
 /*
  *  Copyright (c) 2026 OpenHW Foundation
+ *  Copyright (c) 2026 Eclipse Foundation
  *
  *  SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
  *
@@ -69,16 +70,51 @@ class fpu_agent_cov_model extends uvm_component;
         cp_fmt: coverpoint req.fmt {
             bins FP32 = {2'b00};
             bins FP64 = {2'b01};
-            ignore_bins UNSUPPORTED_FMTS = {[2:3]}; // FP16, FP8, and FP16ALT formats are not covered for now
+            bins FP16 = {2'b10};
+            ignore_bins UNSUPPORTED_FMTS = {2'b11}; // FP8/FP16ALT disabled by cv64a60ax_config_pkg
         }
-        
+
         cp_rm: coverpoint req.rm {
             bins RNE  = {3'b000};  // Round to Nearest, ties to Even
             bins RTZ  = {3'b001};  // Round towards Zero
             bins RDN  = {3'b010};  // Round Down
             bins RUP  = {3'b011};  // Round Up
-            // FIXME: The RMM rounding mode is currently not supported by the reference model
-            ignore_bins RMM  = {3'b100};  // Round to Nearest, ties away from zero
+            bins DYN  = {3'b111};  // Dynamic: selects fpu_frm_i (see cp_frm below)
+            ignore_bins RMM  = {3'b100}; // Round to Nearest, ties away from zero is not supported by reference model (MPFR library)
+        }
+
+        // Dynamic rounding mode register, only meaningful when cp_rm == DYN
+        cp_frm: coverpoint req.frm {
+            bins RNE  = {3'b000};
+            bins RTZ  = {3'b001};
+            bins RDN  = {3'b010};
+            bins RUP  = {3'b011};
+            ignore_bins RMM = {3'b100}; // Round to Nearest, ties away from zero is not supported by reference model (MPFR library)
+        }
+
+        cx_dyn_x_frm: cross cp_rm, cp_frm {
+            // frm is meaningless unless rm selects DYN
+            ignore_bins non_dyn = !binsof(cp_rm.DYN);
+        }
+
+        cp_trans_id: coverpoint req.data.trans_id {
+            bins id[] = {[0:(2**CVA6Cfg.TRANS_ID_BITS)-1]};
+        }
+
+        // NaN-boxing validity (meaningful only for formats narrower than FLen).
+        cp_operand_a_boxed: coverpoint fpu_common_pkg::operand_is_boxed(req.data.operand_a, req.data.operation == FCVT_F2F ? req.data.imm[1:0] : req.fmt) {
+            bins properly_boxed    = {1'b1};
+            bins improperly_boxed  = {1'b0};
+        }
+
+        cp_operand_b_boxed: coverpoint fpu_common_pkg::operand_is_boxed(req.data.operand_b, req.data.operation == FCVT_F2F ? req.data.imm[1:0] : req.fmt) {
+            bins properly_boxed    = {1'b1};
+            bins improperly_boxed  = {1'b0};
+        }
+
+        cp_operand_c_boxed: coverpoint fpu_common_pkg::operand_is_boxed(req.data.imm, req.data.operation == FCVT_F2F ? req.data.imm[1:0] : req.fmt) {
+            bins properly_boxed    = {1'b1};
+            bins improperly_boxed  = {1'b0};
         }
 
         cp_operand_a_class: coverpoint classify_operand(req.data.operand_a, req.data.operation == FCVT_F2F ? req.data.imm[1:0] : req.fmt){
@@ -135,10 +171,8 @@ class fpu_agent_cov_model extends uvm_component;
         type_option.merge_instances = 1;
         option.get_inst_coverage = 1;
         option.per_instance = 1;        
-        // option.name = name;
-                
+
         cp_fp_exception: coverpoint rsp.exception.cause {
-            // Exact match for 0 (no bits set)
             bins NO_EXCEPTION = {'h0};
             wildcard bins NX = {5'b????1}; // Bit 0: Inexact
             wildcard bins UF = {5'b???1?}; // Bit 1: Underflow
@@ -146,13 +180,16 @@ class fpu_agent_cov_model extends uvm_component;
             wildcard bins DZ = {5'b?1???}; // Bit 3: Divide by Zero
             wildcard bins NV = {5'b1????}; // Bit 4: Invalid Operation
         }
+
+        cp_trans_id: coverpoint rsp.trans_id {
+            bins id[] = {[0:(2**CVA6Cfg.TRANS_ID_BITS)-1]};
+        }
     endgroup
 
     covergroup cg_fpu_flush(string name = "cg_fpu_flush") with function sample(bit flush);
         type_option.merge_instances = 1;
         option.get_inst_coverage = 1;
         option.per_instance = 1;        
-        // option.name = name;
 
         cp_flush: coverpoint flush {
             bins flush_detected = {1'b1};
@@ -198,25 +235,34 @@ class fpu_agent_cov_model extends uvm_component;
         logic [10:0] exponent;
         logic [51:0] mantissa;
         logic mantissa_msb;
+        logic exp_all_ones;
 
-        case (fmt) 
+        case (fmt)
             2'h0: begin // FP32
                 mantissa = value[fpnew_pkg::man_bits(fpnew_pkg::FP32)-1:0];
                 exponent = value[fpnew_pkg::man_bits(fpnew_pkg::FP32) +: fpnew_pkg::exp_bits(fpnew_pkg::FP32)];
                 mantissa_msb = mantissa[fpnew_pkg::man_bits(fpnew_pkg::FP32)-1];
+                exp_all_ones = (exponent == {fpnew_pkg::exp_bits(fpnew_pkg::FP32){1'b1}});
             end
             2'h1: begin // FP64
                 mantissa = value[fpnew_pkg::man_bits(fpnew_pkg::FP64)-1:0];
                 exponent = value[fpnew_pkg::man_bits(fpnew_pkg::FP64) +: fpnew_pkg::exp_bits(fpnew_pkg::FP64)];
                 mantissa_msb = mantissa[fpnew_pkg::man_bits(fpnew_pkg::FP64)-1];
+                exp_all_ones = (exponent == {fpnew_pkg::exp_bits(fpnew_pkg::FP64){1'b1}});
+            end
+            2'h2: begin // FP16
+                mantissa = value[fpnew_pkg::man_bits(fpnew_pkg::FP16)-1:0];
+                exponent = value[fpnew_pkg::man_bits(fpnew_pkg::FP16) +: fpnew_pkg::exp_bits(fpnew_pkg::FP16)];
+                mantissa_msb = mantissa[fpnew_pkg::man_bits(fpnew_pkg::FP16)-1];
+                exp_all_ones = (exponent == {fpnew_pkg::exp_bits(fpnew_pkg::FP16){1'b1}});
             end
         endcase
 
         if (exponent == '0 && mantissa == '0) return ZERO;
         if (exponent == '0 && mantissa != '0) return SUBNORMAL;
-        if (exponent != '0 && exponent != '1) return NORMAL;
-        if (exponent == '1 && mantissa == '0) return INF;
-        if (exponent == '1 && mantissa != '0 && mantissa_msb == 1'b0) return SNAN;
+        if (!exp_all_ones && exponent != '0) return NORMAL;
+        if (exp_all_ones && mantissa == '0) return INF;
+        if (exp_all_ones && mantissa != '0 && mantissa_msb == 1'b0) return SNAN;
         return QNAN;
     endfunction: classify_operand
 
@@ -227,6 +273,7 @@ class fpu_agent_cov_model extends uvm_component;
         case (fmt)
             2'h0: return value[fpnew_pkg::fp_width(fpnew_pkg::FP32)-1];
             2'h1: return value[fpnew_pkg::fp_width(fpnew_pkg::FP64)-1];
+            2'h2: return value[fpnew_pkg::fp_width(fpnew_pkg::FP16)-1];
         endcase
     endfunction: get_operand_sign
 
